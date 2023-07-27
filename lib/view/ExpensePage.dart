@@ -1,7 +1,9 @@
 import 'dart:collection';
+import 'dart:ffi';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:intl/intl.dart';
 
 class ExpensePage extends StatefulWidget {
   @override
@@ -15,6 +17,12 @@ class _ExpensePageState extends State<ExpensePage> {
   String description = '';
   double amount = 0.0;
   DateTime selectedDate = DateTime.now();
+  TextEditingController _dateController = TextEditingController(
+      text: DateFormat('dd-MM-yyyy').format(DateTime.now()));
+  TextEditingController _headingController = TextEditingController(text: '');
+  TextEditingController _descriptionController =
+      TextEditingController(text: '');
+  TextEditingController _amountController = TextEditingController(text: '');
 
   List<Map<dynamic, dynamic>> expenseList = [];
 
@@ -36,8 +44,7 @@ class _ExpensePageState extends State<ExpensePage> {
       // Retrieve the data from the snapshot and add it to the expense list
       Object? expenses = dataSnapshot.value;
       if (expenses != null) {
-        (expenses as Map<dynamic,dynamic>).forEach((key, value) {
-
+        (expenses as Map<dynamic, dynamic>).forEach((key, value) {
           expenseList.add({
             'key': key,
             'heading': value['heading'],
@@ -52,7 +59,6 @@ class _ExpensePageState extends State<ExpensePage> {
       setState(() {});
     });
   }
-
 
   void _addExpense() {
     // Create a unique key for the expense entry
@@ -92,104 +98,137 @@ class _ExpensePageState extends State<ExpensePage> {
 
   @override
   Widget build(BuildContext context) {
+    print("Rebuild called");
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.add),
+        onPressed: () {
+          // Show the modal dialog
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Add Expense'),
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Heading'),
+                      controller: _headingController,
+                      onChanged: (value) {
+                        setState(() {
+                          heading = value;
+                        });
+                      },
+                    ),
+                    TextField(
+                      decoration:
+                          const InputDecoration(labelText: 'Description'),
+                      controller: _descriptionController,
+                      onChanged: (value) {
+                        setState(() {
+                          description = value;
+                        });
+                      },
+                    ),
+                    TextField(
+                      decoration: const InputDecoration(labelText: 'Amount'),
+                      controller: _amountController,
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        setState(() {
+                          amount = double.parse(value);
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    // ElevatedButton(
+                    //   onPressed: () async {
+                    //     // Show the date picker
+                    //     final DateTime? picked = await showDatePicker(
+                    //       context: context,
+                    //       initialDate: selectedDate,
+                    //       firstDate: DateTime(2021),
+                    //       lastDate: DateTime(2024),
+                    //     );
+                    //     if (picked != null && picked != selectedDate) {
+                    //       setState(() {
+                    //         selectedDate = picked;
+                    //       });
+                    //     }
+                    //   },
+                    //   child: Text('Date: ${selectedDate.toString()}'),
+                    // ),
+                    GestureDetector(
+                      onTap: () async {
+                        DateTime initialDate = DateTime.now();
+                        final selectedDate = await showDatePicker(
+                          context: context,
+                          initialDate: initialDate,
+                          firstDate: DateTime(1600),
+                          lastDate: DateTime(2100),
+                        );
+                        if (selectedDate != null) {
+                          setState(() {
+                            this._dateController.text =
+                                DateFormat('dd-MM-yyyy').format(selectedDate);
+                          });
+                        }
+                      },
+                      child: TextFormField(
+                        controller: _dateController,
+                        decoration: InputDecoration(
+                          labelText: 'Expense Date',
+                          suffixIcon:
+                              Icon(Icons.calendar_today, color: Colors.blue),
+                        ),
+                        enabled: false, // Disable user editing
+                      ),
+                    )
+                  ],
+                ),
+                actions: [
+                  ElevatedButton(
+                    onPressed: () {
+                      // Add expense to Firebase
+                      _addExpense();
+
+                      // Close the modal dialog
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Add'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Clear the form fields
+                      setState(() {
+                        heading = '';
+                        description = '';
+                        amount = 0.0;
+                        selectedDate = DateTime.now();
+                        _headingController.clear();
+                        _descriptionController.clear();
+                        _amountController.clear();
+                        _dateController.text =
+                            DateFormat('dd-MM-yyyy').format(DateTime.now());
+                      });
+                      print("Reset Called");
+                    },
+                    child: const Text('Reset'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
       appBar: AppBar(
         title: const Text('Expense Page'),
       ),
       body: Center(
         child: Column(
           children: [
-            ElevatedButton.icon(
-              onPressed: () {
-                // Show the modal dialog
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: const Text('Add Expense'),
-                      content: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TextField(
-                            decoration: const InputDecoration(labelText: 'Heading'),
-                            onChanged: (value) {
-                              setState(() {
-                                heading = value;
-                              });
-                            },
-                          ),
-                          TextField(
-                            decoration:
-                            const InputDecoration(labelText: 'Description'),
-                            onChanged: (value) {
-                              setState(() {
-                                description = value;
-                              });
-                            },
-                          ),
-                          TextField(
-                            decoration: const InputDecoration(labelText: 'Amount'),
-                            keyboardType: TextInputType.number,
-                            onChanged: (value) {
-                              setState(() {
-                                amount = double.parse(value);
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          ElevatedButton(
-                            onPressed: () async {
-                              // Show the date picker
-                              final DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate: selectedDate,
-                                firstDate: DateTime(2021),
-                                lastDate: DateTime(2024),
-                              );
-                              if (picked != null && picked != selectedDate) {
-                                setState(() {
-                                  selectedDate = picked;
-                                });
-                              }
-                            },
-                            child: Text('Date: ${selectedDate.toString()}'),
-                          ),
-                        ],
-                      ),
-                      actions: [
-                        ElevatedButton(
-                          onPressed: () {
-                            // Add expense to Firebase
-                            _addExpense();
-
-                            // Close the modal dialog
-                            Navigator.of(context).pop();
-                          },
-                          child: const Text('Add'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            // Clear the form fields
-                            setState(() {
-                              heading = '';
-                              description = '';
-                              amount = 0.0;
-                              selectedDate = DateTime.now();
-                            });
-                          },
-                          child: const Text('Reset'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Add Expense'),
-            ),
-
-            // Display the expense data
             Expanded(
               child: ListView.builder(
                 itemCount: expenseList.length,
@@ -207,14 +246,14 @@ class _ExpensePageState extends State<ExpensePage> {
                           print('Tapped on expense: ${expense['key']}');
                         },
                       ),
-                      const Divider(height: 2,thickness: 2), // Add a horizontal line divider
+                      const Divider(height: 2, thickness: 2),
+                      // Add a horizontal line divider
                     ],
                   );
                 },
               ),
             ),
           ],
-
         ),
       ),
     );
